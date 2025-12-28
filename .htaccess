@@ -1,0 +1,20 @@
+# ============================================================
+# SERVER CONFIGURATION: CORS POLICY (Cross-Origin Resource Sharing)
+# Permite la comunicación entre el frontend (React) y el backend (PHP).
+# ============================================================
+
+<IfModule mod_headers.c>
+    # Policy: Permite peticiones desde cualquier origen (Wildcard)
+    # Nota: En producción se recomienda especificar el dominio exacto del frontend.
+    Header set Access-Control-Allow-Origin "*"
+
+    # Methods: Define los verbos HTTP permitidos para las transacciones del API.
+    # Incluye OPTIONS para gestionar el "Preflight request" de los navegadores.
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+
+    # Headers: Autoriza el intercambio de metadatos específicos.
+    # Content-Type es vital para recibir JSON desde el 'fetch' de React.
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+
+#
