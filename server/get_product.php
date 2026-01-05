@@ -1,8 +1,8 @@
 <?php
 /**
  * Global Product Catalog Endpoint
- * Orquestador de consultas complejas: Gestiona paginación, filtrado por categorías
- * y normalización de tipos de datos para el frontend.
+ * Orquestador de consultas complejas: Gestiona paginación, filtrado por categorías,
+ * ordenación dinámica y normalización de tipos de datos para el frontend.
  */
 
 // Desactivación de errores nativos para evitar corrupción del JSON de salida
@@ -28,11 +28,12 @@ try {
     }
 
     // ============================================================
-    // LÓGICA DE PAGINACIÓN (OFFSET-BASED)
-    // Calcula el segmento de datos basado en la página actual y el límite.
+    // PARÁMETROS DE ENTRADA
+    // Recuperación de parámetros de URL para paginación y orden
     // ============================================================
     $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
     $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 15;
+    $ordenSolicitado = $_GET['orden'] ?? 'Relevante';
 
     // Validación de rangos mínimos
     $page = max($page, 1);
@@ -59,6 +60,18 @@ try {
     }
 
     // ============================================================
+    // LÓGICA DE ORDENACIÓN (DINÁMICA)
+    // Mapea el parámetro 'orden' a instrucciones ORDER BY válidas
+    // ============================================================
+    $orderBy = "id DESC"; // Estado por defecto: Más nuevos primero
+
+    if ($ordenSolicitado === 'precio_asc') {
+        $orderBy = "precio ASC";
+    } elseif ($ordenSolicitado === 'precio_desc') {
+        $orderBy = "precio DESC";
+    }
+
+    // ============================================================
     // METADATOS: TOTAL DE REGISTROS
     // Necesario para que el frontend calcule el número de páginas disponibles.
     // ============================================================
@@ -74,13 +87,13 @@ try {
 
     // ============================================================
     // CONSULTA PRINCIPAL Y HIDRATACIÓN DE DATOS
-    // Extracción de la entidad con límites de segmentación.
+    // Extracción de la entidad con límites de segmentación y orden dinámico.
     // ============================================================
     $sql = "SELECT id, nombre, descripcion, categoria, subcategoria, 
                    sku, precio, stock, imagen_url, disponible, color_hex
             FROM productos
             $where
-            ORDER BY id
+            ORDER BY $orderBy
             LIMIT $limit OFFSET $offset";
 
     $resultado = $conexion->query($sql);
