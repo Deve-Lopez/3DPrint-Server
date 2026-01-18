@@ -6,7 +6,7 @@
  */
 
 include "cors.php";     // CORS Controller: Habilita el handshake con el cliente React
-include "conexion.php"; // Instance Provider: Proporciona el objeto $conn (MySQLi)
+include "conexion.php"; // Instance Provider: Proporciona el objeto $conexion (MySQLi)
 
 // Definición de cabeceras para la transmisión de datos en formato JSON
 header('Content-Type: application/json; charset=utf-8');
@@ -22,34 +22,43 @@ $datos = json_decode(file_get_contents("php://input"), true);
  * Server-side Validation:
  * Verificación de campos obligatorios para asegurar la integridad de la base de datos.
  */
-if(empty($datos['nombre']) || empty($datos['correo']) || empty($datos['asunto'])){
+if(empty($datos['nombre']) || empty($datos['email']) || empty($datos['asunto']) || empty($datos['mensaje'])){
     http_response_code(400); // Bad Request
-    die(json_encode(["status" => "error", "mensaje" => "Validación fallida: Todos los campos son requeridos"]));
+    echo json_encode(["status" => "error", "mensaje" => "Validación fallida: Los campos obligatorios están vacíos"]);
+    exit();
 }
 
 /**
  * Email Format Verification:
- * Utiliza filtros nativos de PHP para validar la estructura sintáctica del correo.
+ * Filtros nativos de PHP para validar la estructura sintáctica del correo.
  */
-if(!filter_var($datos['correo'], FILTER_VALIDATE_EMAIL)){
-    http_response_code(422); // Unprocessable Entity
-    die(json_encode(["status" => "error", "mensaje" => "El formato del email no es válido"]));
+if(!filter_var($datos['email'], FILTER_VALIDATE_EMAIL)){
+    http_response_code(422); 
+    echo json_encode(["status" => "error", "mensaje" => "El formato del email no es válido"]);
+    exit();
 }
-
-
 
 /**
  * Data Persistence (Prepared Statements):
  * Implementa el protocolo de seguridad para mitigar ataques de Inyección SQL.
- * Los marcadores '?' actúan como placeholders para la parametrización de datos.
+ * Se mapean las 5 variables a las columnas: nombre, email, asunto, mensaje, telefono.
  */
-$stmt = $conn->prepare("INSERT INTO mensajes_contacto (nombre, correo, asunto, fecha_envio) VALUES (?, ?, ?, NOW())");
+$stmt = $conexion->prepare("INSERT INTO mensajes_contacto (nombre, email, asunto, mensaje, telefono, fecha_envio) VALUES (?, ?, ?, ?, ?, NOW())");
 
 /**
  * Parameter Binding:
- * Vincula las variables PHP a los placeholders. 'sss' indica tres parámetros de tipo String.
+ * Vincular las variables PHP a los placeholders. 'sssss' indica cinco parámetros de tipo String.
+ * Manejo de 'telefono' como opcional mediante el operador null coalescing.
  */
-$stmt->bind_param("sss", $datos['nombre'], $datos['correo'], $datos['asunto']);
+$telefono = $datos['telefono'] ?? '';
+
+$stmt->bind_param("sssss", 
+    $datos['nombre'], 
+    $datos['email'], 
+    $datos['asunto'], 
+    $datos['mensaje'], 
+    $telefono
+);
 
 /**
  * Execution & Transaction Feedback:
@@ -68,6 +77,6 @@ if ($stmt->execute()) {
  * Cierre explícito del statement y la conexión para optimizar la memoria del servidor.
  */
 $stmt->close();
-$conn->close();
+$conexion->close();
 
 ?>
