@@ -22,6 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $precio       = isset($_POST['precio']) ? (float)$_POST['precio'] : 0.00;
         $stock        = isset($_POST['stock']) ? (int)$_POST['stock'] : 0;
         $color_hex    = $_POST['color_hex'] ?? '#333333';
+        
+        // --- NUEVO: Recoger disponibilidad ---
+        $disponible   = isset($_POST['disponible']) ? (int)$_POST['disponible'] : 1;
 
         // Gestión de Imagen
         $nombre_imagen = "default.jpg";
@@ -30,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Ruta absoluta específica para XAMPP en Mac
             $directorio_destino = "/Applications/XAMPP/xamppfiles/htdocs/3dprint/images/";
             
-            // Validar si la carpeta existe y es escribible
             if (!is_dir($directorio_destino)) {
                 throw new Exception("La carpeta de destino no existe en el disco.");
             }
@@ -40,19 +42,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ruta_final = $directorio_destino . $nombre_imagen;
 
             if (!move_uploaded_file($_FILES['imagen']['tmp_name'], $ruta_final)) {
-                throw new Exception("Error al mover el archivo. Revisa el tamaño del archivo.");
+                throw new Exception("Error al mover el archivo.");
             }
         }
 
-        // Insertar en BD
-        $sql = "INSERT INTO productos (nombre, categoria, subcategoria, sku, descripcion, precio, stock, imagen_url, color_hex) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        // --- ACTUALIZADO: Insertar incluyendo 'disponible' ---
+        $sql = "INSERT INTO productos (nombre, categoria, subcategoria, sku, descripcion, precio, stock, imagen_url, color_hex, disponible) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = $conexion->prepare($sql);
         if (!$stmt) throw new Exception("Error SQL: " . $conexion->error);
 
-        // 9 parámetros (asumiendo que eliminamos 'disponible' si no lo tienes o ajustamos)
-        $stmt->bind_param("sssssdiss", $nombre, $categoria, $subcategoria, $sku, $descripcion, $precio, $stock, $nombre_imagen, $color_hex);
+        // Ajustamos bind_param: Añadimos una "i" al final para $disponible
+        // s s s s s d i s s i
+        $stmt->bind_param("sssssdissi", 
+            $nombre, 
+            $categoria, 
+            $subcategoria, 
+            $sku, 
+            $descripcion, 
+            $precio, 
+            $stock, 
+            $nombre_imagen, 
+            $color_hex,
+            $disponible
+        );
 
         if ($stmt->execute()) {
             echo json_encode(["status" => "success", "mensaje" => "Producto guardado correctamente"]);
