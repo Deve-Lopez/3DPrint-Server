@@ -1,4 +1,8 @@
 <?php
+/**
+ * Script: login.php
+ * Finalidad: Autenticación de usuarios y control de acceso por estado de cuenta.
+ */
 
 include "cors.php";
 include "conexion.php";
@@ -9,10 +13,7 @@ try {
 
     if (!isset($data["email"]) || !isset($data["contrasena"])) {
         http_response_code(400);
-        echo json_encode([
-            "status" => "error",
-            "mensaje" => "Faltan datos"
-        ]);
+        echo json_encode(["status" => "error", "mensaje" => "Faltan datos"]);
         exit();
     }
 
@@ -20,7 +21,8 @@ try {
     $contrasena = trim($data["contrasena"]);
 
     /**
-     * 1. Añadimos 'activo' a la consulta
+     * Búsqueda de identidad:
+     * Recuperamos el perfil completo y el hash de la contraseña mediante el email.
      */
     $sql = "SELECT id, email, nombre, apellido, rol_id, direccion, ciudad, codigo_postal, telefono, contrasena_hash, activo FROM usuarios WHERE email = ?";
     $stmt = $conexion->prepare($sql);
@@ -29,18 +31,15 @@ try {
     $resultado = $stmt->get_result();
 
     if ($resultado->num_rows === 0) {
-        echo json_encode([
-            "status" => "error",
-            "mensaje" => "Usuario o contraseña incorrectos"
-        ]);
+        echo json_encode(["status" => "error", "mensaje" => "Usuario o contraseña incorrectos"]);
         exit();
     }
 
     $usuario = $resultado->fetch_assoc();
 
     /**
-     * 2. COMPROBACIÓN DE CUENTA ACTIVA
-     * Si el usuario existe pero activo es 0, bloqueamos el acceso inmediatamente
+     * Control de Estado (Baneo/Desactivación):
+     * Verificamos el flag 'activo' antes de validar la contraseña para ahorrar recursos.
      */
     if ((int)$usuario["activo"] === 0) {
         echo json_encode([
@@ -50,19 +49,21 @@ try {
         exit();
     }
 
+    
+
     /**
-     * 3. Verificar contraseña hasheada
+     * Validación Criptográfica:
+     * 'password_verify' compara el texto plano con el hash guardado (BCRYPT).
+     * Es inmune a ataques de temporización.
      */
     if (!password_verify($contrasena, $usuario["contrasena_hash"])) {
-        echo json_encode([
-            "status" => "error",
-            "mensaje" => "Usuario o contraseña incorrectos"
-        ]);
+        echo json_encode(["status" => "error", "mensaje" => "Usuario o contraseña incorrectos"]);
         exit();
     }
 
     /**
-     * Login correcto
+     * Respuesta de éxito:
+     * Retornamos el perfil del usuario (sin el hash) para persistirlo en el State de React.
      */
     echo json_encode([
         "status" => "success",
@@ -82,10 +83,6 @@ try {
 
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode([
-        "status" => "error",
-        "mensaje" => "Error interno del servidor",
-        "detalle" => $e->getMessage()
-    ]);
+    echo json_encode(["status" => "error", "mensaje" => "Error interno", "detalle" => $e->getMessage()]);
     exit();
 }

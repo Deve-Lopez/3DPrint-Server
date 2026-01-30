@@ -1,19 +1,20 @@
 <?php
 /**
- * Product Detail Endpoint
- * Recupera la información extendida de una entidad específica mediante su identificador único.
- * Proporciona el dataset completo necesario para la vista 'DetailsProduct' del frontend.
+ * Script: get_product_detail.php
+ * Finalidad: Hidratar la vista de detalle de producto en el frontend mediante su ID.
  */
 
-include_once "conexion.php"; // Instance Provider
-include_once "cors.php";    // CORS & Header Controller
+include_once "conexion.php"; 
+include_once "cors.php";    
+
+header('Content-Type: application/json');
 
 /**
- * Request Validation:
- * Verifica la existencia del parámetro obligatorio 'id' en el query string.
+ * Validación de entrada:
+ * Comprobamos la existencia del ID para evitar consultas nulas.
  */
 if (!isset($_GET['id'])) {
-    http_response_code(400); // Bad Request
+    http_response_code(400); 
     echo json_encode([
         "status" => "error", 
         "message" => "Solicitud inválida: Falta el parámetro ID"
@@ -22,13 +23,14 @@ if (!isset($_GET['id'])) {
 }
 
 /**
- * Security & Sanitization:
- * Aplicamos Type Casting (int) para asegurar que el parámetro sea un entero,
- * mitigando riesgos básicos de Inyección SQL en el segmento dinámico.
+ * Sanitización:
+ * El casting (int) garantiza que el parámetro sea numérico antes de entrar en la consulta.
  */
 $id = (int) $_GET['id'];
 
-// Query Execution: Selección de campos específicos para la hidratación del componente
+
+
+// Consulta: Recuperación del dataset completo del producto
 $sql = "SELECT 
             id, nombre, descripcion, categoria, subcategoria, 
             sku, precio, stock, imagen_url, disponible, color_hex 
@@ -38,11 +40,11 @@ $sql = "SELECT
 $result = $conexion->query($sql);
 
 /**
- * Database Response Analysis:
- * Gestiona el flujo según la existencia del registro en el motor SQL.
+ * Control de resultados:
+ * Si el ID no existe en la DB, devolvemos un código 404 para que el frontend lo gestione.
  */
 if(!$result || $result->num_rows === 0){
-    http_response_code(404); // Not Found
+    http_response_code(404); 
     echo json_encode([
         "status" => "error", 
         "message" => "El producto solicitado no existe en el catálogo"
@@ -51,11 +53,10 @@ if(!$result || $result->num_rows === 0){
 }
 
 /**
- * Success Response:
- * Serialización del registro (Assoc Array) a formato JSON para el consumo del cliente.
+ * Respuesta Exitosa:
+ * Enviamos el objeto producto único como JSON asociativo.
  */
 echo json_encode($result->fetch_assoc());
 
-// Resource Cleanup: Cierre de la conexión al finalizar el ciclo de vida del script
 $conexion->close();
 ?>

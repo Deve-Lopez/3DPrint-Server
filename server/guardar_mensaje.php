@@ -1,36 +1,33 @@
 <?php
 /**
- * Contact Form Processor
- * Gestiona la recepción de leads y mensajes desde el frontend.
- * Implementa validaciones de integridad y persistencia segura mediante sentencias preparadas.
+ * Script: guardar_mensaje.php
+ * Finalidad: Procesar el formulario de contacto con validaciones de seguridad y formato.
  */
 
-include "cors.php";     // CORS Controller: Habilita el handshake con el cliente React
-include "conexion.php"; // Instance Provider: Proporciona el objeto $conexion (MySQLi)
+include "cors.php";     
+include "conexion.php"; 
 
-// Definición de cabeceras para la transmisión de datos en formato JSON
 header('Content-Type: application/json; charset=utf-8');
 
 /**
- * Request Body Parsing:
- * Extrae el payload del stream 'php://input' (necesario para lecturas de fetch/JSON).
- * Se decodifica a un array asociativo para su manipulación.
+ * Parsing de datos:
+ * Recuperamos el JSON del cuerpo de la petición (stream) y lo convertimos en array.
  */
 $datos = json_decode(file_get_contents("php://input"), true);
 
 /**
- * Server-side Validation:
- * Verificación de campos obligatorios para asegurar la integridad de la base de datos.
+ * Validación de campos requeridos:
+ * Asegura que la aplicación no procese registros incompletos.
  */
 if(empty($datos['nombre']) || empty($datos['email']) || empty($datos['asunto']) || empty($datos['mensaje'])){
-    http_response_code(400); // Bad Request
-    echo json_encode(["status" => "error", "mensaje" => "Validación fallida: Los campos obligatorios están vacíos"]);
+    http_response_code(400); 
+    echo json_encode(["status" => "error", "mensaje" => "Validación fallida: Campos obligatorios vacíos"]);
     exit();
 }
 
 /**
- * Email Format Verification:
- * Filtros nativos de PHP para validar la estructura sintáctica del correo.
+ * Validación de formato:
+ * Uso de 'filter_var' para garantizar que el email cumple con los estándares RFC.
  */
 if(!filter_var($datos['email'], FILTER_VALIDATE_EMAIL)){
     http_response_code(422); 
@@ -38,17 +35,17 @@ if(!filter_var($datos['email'], FILTER_VALIDATE_EMAIL)){
     exit();
 }
 
+
+
 /**
- * Data Persistence (Prepared Statements):
- * Implementa el protocolo de seguridad para mitigar ataques de Inyección SQL.
- * Se mapean las 5 variables a las columnas: nombre, email, asunto, mensaje, telefono.
+ * Persistencia Segura:
+ * Sentencia preparada para registrar el mensaje. Se incluye 'NOW()' para la marca temporal.
  */
 $stmt = $conexion->prepare("INSERT INTO mensajes_contacto (nombre, email, asunto, mensaje, telefono, fecha_envio) VALUES (?, ?, ?, ?, ?, NOW())");
 
 /**
- * Parameter Binding:
- * Vincular las variables PHP a los placeholders. 'sssss' indica cinco parámetros de tipo String.
- * Manejo de 'telefono' como opcional mediante el operador null coalescing.
+ * Vinculación de parámetros:
+ * Se define el tipo 's' (string) para los 5 campos capturados.
  */
 $telefono = $datos['telefono'] ?? '';
 
@@ -61,21 +58,17 @@ $stmt->bind_param("sssss",
 );
 
 /**
- * Execution & Transaction Feedback:
- * Ejecuta la sentencia y retorna el estado de la operación al cliente.
+ * Respuesta de estado HTTP:
+ * 201 (Created) para éxito y 500 (Server Error) para fallos de base de datos.
  */
 if ($stmt->execute()) {
-    http_response_code(201); // Created
+    http_response_code(201); 
     echo json_encode(["status" => "success", "mensaje" => "Mensaje registrado correctamente"]);
 } else {
-    http_response_code(500); // Internal Server Error
+    http_response_code(500); 
     echo json_encode(["status" => "error", "mensaje" => "Fallo en la persistencia: " . $stmt->error]);
 }
 
-/**
- * Resource Cleanup:
- * Cierre explícito del statement y la conexión para optimizar la memoria del servidor.
- */
 $stmt->close();
 $conexion->close();
 

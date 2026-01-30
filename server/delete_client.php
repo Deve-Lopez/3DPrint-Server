@@ -1,10 +1,15 @@
 <?php
+/**
+ * Script de eliminación de usuarios (Admin)
+ */
+
 include_once "cors.php";
 include_once "conexion.php";
 
 header('Content-Type:application/json');
 
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
+    // Captura de ID por parámetro de URL y casting a entero
     $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 
     if(!$id){
@@ -13,10 +18,12 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     }
 
     try{
+        // Sentencia preparada para evitar inyección SQL
         $stmt = $conexion->prepare("DELETE FROM usuarios WHERE id = ?");
         $stmt->bind_param("i", $id);
 
         if($stmt->execute()){
+            // Verificación de si la fila existía realmente antes del borrado
             if($stmt->affected_rows > 0){
                 echo json_encode(["status" => "success", "mensaje" => "Usuario eliminado correctamente"]);
             } else {
@@ -26,15 +33,14 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             throw new Exception($conexion->error);
         }
         
-        $stmt->close(); // Cerramos aquí si todo fue bien
+        $stmt->close(); 
 
     } catch(Exception $e){
+        // Respuesta en caso de error (ej: restricción de clave foránea)
         http_response_code(500);
-        // Enviamos el mensaje real para poder debugear
         echo json_encode(["status" => "error", "mensaje" => $e->getMessage()]);
     }
 
-    // Cerramos la conexión al final del script
     $conexion->close();
 
 } else {

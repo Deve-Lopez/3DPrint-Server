@@ -1,10 +1,14 @@
 <?php
+/**
+ * Script de eliminación de productos
+ */
+
 include_once "cors.php";
 include_once "conexion.php";
 
 header('Content-Type: application/json');
 
-// Aceptamos POST para evitar problemas de CORS en Mac
+// Soporte multiplataforma para métodos POST y DELETE (evita bloqueos de CORS)
 if($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'DELETE'){
     $id = $_GET['id'] ?? null;
 
@@ -14,7 +18,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'DELE
     }
 
     try {
-        // Borrar directamente el registro de la base de datos
+        // Preparación de consulta DELETE física sobre la tabla productos
         $stmt = $conexion->prepare("DELETE FROM productos WHERE id = ?");
         $stmt->bind_param("i", $id);
 
@@ -28,6 +32,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'DELE
         }
 
     } catch(Exception $e){
+        // Error 500 en caso de fallo de servidor o restricción de integridad referencial
         http_response_code(500);
         echo json_encode(["status" => "error", "mensaje" => $e->getMessage()]);
     }

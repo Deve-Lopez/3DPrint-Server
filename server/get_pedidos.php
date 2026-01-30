@@ -1,6 +1,10 @@
 <?php
 include_once "cors.php";
 
+/**
+ * Gestión del Preflight (OPTIONS):
+ * Necesario para peticiones complejas en arquitecturas desacopladas.
+ */
 if($_SERVER['REQUEST_METHOD'] === 'OPTIONS'){
     http_response_code(200);
     exit();
@@ -15,7 +19,11 @@ try {
         throw new Exception("Fallo crítico: No se pudo instanciar la conexión a la BD");
     }
 
-    // Ampliamos la consulta con u.ciudad, u.codigo_postal y u.telefono
+    /**
+     * CONSULTA MULTI-TABLA (INNER JOIN):
+     * Consolidamos datos de 'pedidos', 'detalle_pedidos', 'productos' y 'usuarios'.
+     * Usamos alias (AS) para evitar colisiones de nombres de columnas.
+     */
     $sql = "SELECT 
                 p.id AS pedido_id,
                 p.fecha,
@@ -43,6 +51,11 @@ try {
         throw new Exception("Error en la consulta: " . $conexion->error);
     }
 
+    /**
+     * AGRUPACIÓN DE DATOS:
+     * El resultado SQL devuelve una fila por cada producto.
+     * Agrupamos por 'pedido_id' para crear una estructura anidada objeto -> productos.
+     */
     $pedidos = [];
 
     while($row = $resultado->fetch_assoc()){
@@ -56,13 +69,14 @@ try {
                 'estado'         => $row['estado'],
                 'direccion'      => $row['direccion_envio'],
                 'destinatario'   => $row['cliente_full'],
-                'ciudad'         => $row['ciudad'],          // <-- NUEVO
-                'cp'             => $row['codigo_postal'],   // <-- NUEVO
-                'telefono'       => $row['telefono'],        // <-- NUEVO
+                'ciudad'         => $row['ciudad'],
+                'cp'             => $row['codigo_postal'],
+                'telefono'       => $row['telefono'],
                 'productos'      => [] 
             ];
         }
 
+        // Inyectamos el producto en la colección del pedido correspondiente
         $pedidos[$idPedido]['productos'][] = [
             'nombre'          => $row['producto_nombre'],
             'sku'             => $row['producto_sku'],
@@ -71,6 +85,11 @@ try {
         ];
     }
 
+    /**
+     * Respuesta Final:
+     * Usamos 'array_values' para convertir el array asociativo en un array indexado 
+     * estándar compatible con el método .map() de JavaScript.
+     */
     echo json_encode([
         'status' => 'success',
         'data' => array_values($pedidos)

@@ -1,17 +1,23 @@
 <?php
+/**
+ * Script: update_perfil.php
+ * Finalidad: Permite al usuario actualizar sus datos personales desde su panel de control.
+ */
+
 include_once "cors.php";
 include_once "conexion.php";
 
 header('Content-Type: application/json');
 
-// Verificamos que la petición sea POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(["status" => "error", "mensaje" => "Método no permitido"]);
     exit;
 }
 
-// Obtenemos los datos del FormData (enviados desde React)
-// Usamos el operador ternario para evitar errores de "undefined index"
+/**
+ * Captura y limpieza:
+ * Se utiliza trim() para eliminar espacios accidentales en los extremos de los strings.
+ */
 $id            = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 $nombre        = isset($_POST['nombre']) ? trim($_POST['nombre']) : '';
 $apellido      = isset($_POST['apellido']) ? trim($_POST['apellido']) : '';
@@ -20,15 +26,17 @@ $ciudad        = isset($_POST['ciudad']) ? trim($_POST['ciudad']) : '';
 $direccion     = isset($_POST['direccion']) ? trim($_POST['direccion']) : '';
 $codigo_postal = isset($_POST['codigo_postal']) ? trim($_POST['codigo_postal']) : '';
 
-// Validación básica: El ID es obligatorio
 if ($id === 0) {
     echo json_encode(["status" => "error", "mensaje" => "ID de usuario no válido"]);
     exit;
 }
 
 try {
-    // IMPORTANTE: Solo actualizamos campos de perfil. 
-    // No permitimos actualizar 'email', 'password' ni 'rol_id' aquí por seguridad.
+    /**
+     * SEGURIDAD POR LIMITACIÓN:
+     * El UPDATE omite campos como 'email', 'rol_id' o 'password'. 
+     * Esto evita que un usuario cambie su correo (clave de login) o se eleve privilegios por error.
+     */
     $sql = "UPDATE usuarios SET 
                 nombre = ?, 
                 apellido = ?, 
@@ -40,7 +48,7 @@ try {
 
     $stmt = $conexion->prepare($sql);
     
-    // "ssssssi" indica: 6 strings y 1 entero al final
+    // Vinculación: 6 parámetros tipo string y 1 entero (ID)
     $stmt->bind_param("ssssssi", 
         $nombre, 
         $apellido, 
@@ -51,7 +59,14 @@ try {
         $id
     );
 
+    
+
     if ($stmt->execute()) {
+        /**
+         * Validación de ejecución:
+         * Se considera éxito incluso si no hay filas afectadas (affected_rows === 0) 
+         * si no hay error de base de datos (el usuario guardó sin cambiar nada).
+         */
         if ($stmt->affected_rows > 0 || $stmt->errno === 0) {
             echo json_encode([
                 "status" => "success", 
